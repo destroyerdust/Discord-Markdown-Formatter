@@ -253,8 +253,7 @@ pre,
 
 /* Textarea specific */
 textarea.input {
-  resize: vertical;
-  min-height: 100px;
+  resize: none;
 }
 
 /* ============================================

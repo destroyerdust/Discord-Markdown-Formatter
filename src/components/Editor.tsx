@@ -198,13 +198,13 @@ export function Editor() {
         </div>
 
         {/* Textarea */}
-        <div className="flex-1 p-3">
+        <div className="flex-1 flex flex-col min-h-0 p-3">
           <textarea
             ref={textareaRef}
             value={content}
             onChange={handleChange}
             onSelect={handleSelect}
-            className="input w-full h-full font-mono text-sm resize-none leading-relaxed"
+            className="input w-full flex-1 min-h-0 font-mono text-sm resize-none leading-relaxed"
             placeholder="Type your Discord message here...
 
 Try some Markdown:
