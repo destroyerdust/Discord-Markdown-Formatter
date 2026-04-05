@@ -147,6 +147,29 @@ function underlinePlugin(md: MarkdownIt): void {
  * Custom inline rule for Discord spoiler: ||text||
  */
 function spoilerPlugin(md: MarkdownIt): void {
+  const createTextToken = (content: string, level: number): Token => {
+    const textToken = new Token('text', '', 0);
+    textToken.content = content;
+    textToken.level = level;
+    return textToken;
+  };
+
+  const createSpoilerOpen = (): Token => {
+    const spoilerOpen = new Token('spoiler_open', 'span', 1);
+    spoilerOpen.markup = '||';
+    spoilerOpen.attrSet('class', 'spoiler');
+    spoilerOpen.attrSet('tabindex', '0');
+    spoilerOpen.attrSet('role', 'button');
+    spoilerOpen.attrSet('aria-label', 'Spoiler (click to reveal)');
+    return spoilerOpen;
+  };
+
+  const createSpoilerClose = (): Token => {
+    const spoilerClose = new Token('spoiler_close', 'span', -1);
+    spoilerClose.markup = '||';
+    return spoilerClose;
+  };
+
   md.core.ruler.after('inline', 'discord_spoiler', (state) => {
     for (const blockToken of state.tokens) {
       if (blockToken.type !== 'inline' || !blockToken.children) {
@@ -154,43 +177,90 @@ function spoilerPlugin(md: MarkdownIt): void {
       }
 
       const transformedChildren: Token[] = [];
+      const originalChildren = blockToken.children;
+      let childIndex = 0;
 
-      for (const childToken of blockToken.children) {
+      while (childIndex < originalChildren.length) {
+        const childToken = originalChildren[childIndex];
+
         if (childToken.type !== 'text' || !childToken.content.includes('||')) {
           transformedChildren.push(childToken);
+          childIndex++;
           continue;
         }
 
-        const segments = childToken.content.split(/(\|\|[\s\S]+?\|\|)/);
+        let currentTextToken = childToken;
+        let textCursor = 0;
 
-        for (const segment of segments) {
-          if (!segment) {
-            continue;
+        while (true) {
+          const openIndex = currentTextToken.content.indexOf('||', textCursor);
+
+          if (openIndex === -1) {
+            const trailingText = currentTextToken.content.slice(textCursor);
+            if (trailingText) {
+              transformedChildren.push(createTextToken(trailingText, currentTextToken.level));
+            }
+            childIndex++;
+            break;
           }
 
-          if (!segment.startsWith('||') || !segment.endsWith('||')) {
-            const textToken = new Token('text', '', 0);
-            textToken.content = segment;
-            transformedChildren.push(textToken);
-            continue;
+          const leadingText = currentTextToken.content.slice(textCursor, openIndex);
+          if (leadingText) {
+            transformedChildren.push(createTextToken(leadingText, currentTextToken.level));
           }
 
-          const innerContent = segment.slice(2, -2);
-          const spoilerOpen = new Token('spoiler_open', 'span', 1);
-          spoilerOpen.markup = '||';
-          spoilerOpen.attrSet('class', 'spoiler');
-          spoilerOpen.attrSet('tabindex', '0');
-          spoilerOpen.attrSet('role', 'button');
-          spoilerOpen.attrSet('aria-label', 'Spoiler (click to reveal)');
-          transformedChildren.push(spoilerOpen);
+          const spoilerContent: Token[] = [];
+          let searchIndex = childIndex;
+          let searchOffset = openIndex + 2;
+          let foundClosingDelimiter = false;
+          let closeOffset = -1;
 
-          const parsedChildren: Token[] = [];
-          state.md.inline.parse(innerContent, state.md, state.env, parsedChildren);
-          transformedChildren.push(...parsedChildren);
+          while (searchIndex < originalChildren.length) {
+            const searchToken = originalChildren[searchIndex];
 
-          const spoilerClose = new Token('spoiler_close', 'span', -1);
-          spoilerClose.markup = '||';
-          transformedChildren.push(spoilerClose);
+            if (searchToken.type !== 'text') {
+              spoilerContent.push(searchToken);
+              searchIndex++;
+              searchOffset = 0;
+              continue;
+            }
+
+            const closeIndex = searchToken.content.indexOf('||', searchOffset);
+
+            if (closeIndex === -1) {
+              const contentSlice = searchToken.content.slice(searchOffset);
+              if (contentSlice) {
+                spoilerContent.push(createTextToken(contentSlice, searchToken.level));
+              }
+              searchIndex++;
+              searchOffset = 0;
+              continue;
+            }
+
+            const contentBeforeClose = searchToken.content.slice(searchOffset, closeIndex);
+            if (contentBeforeClose) {
+              spoilerContent.push(createTextToken(contentBeforeClose, searchToken.level));
+            }
+
+            foundClosingDelimiter = spoilerContent.length > 0;
+            closeOffset = closeIndex + 2;
+            break;
+          }
+
+          if (!foundClosingDelimiter) {
+            const unmatchedText = currentTextToken.content.slice(openIndex);
+            transformedChildren.push(createTextToken(unmatchedText, currentTextToken.level));
+            childIndex++;
+            break;
+          }
+
+          transformedChildren.push(createSpoilerOpen());
+          transformedChildren.push(...spoilerContent);
+          transformedChildren.push(createSpoilerClose());
+
+          childIndex = searchIndex;
+          currentTextToken = originalChildren[childIndex];
+          textCursor = closeOffset;
         }
       }
 

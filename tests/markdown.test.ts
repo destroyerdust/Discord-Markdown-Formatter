@@ -84,6 +84,24 @@ describe('markdown', () => {
     expect(html).toContain(expectedTimestamp);
   });
 
+  it('renders formatted content inside spoilers', () => {
+    const html = renderMarkdown('||**secret**||');
+
+    expect(html).toContain('<span class="spoiler"');
+    expect(html).toContain('<strong>secret</strong>');
+    expect(html).not.toContain('||');
+  });
+
+  it('renders spoilers correctly when surrounded by plain text', () => {
+    const html = renderMarkdown('before ||**secret**|| after');
+
+    expect(html).toContain('before ');
+    expect(html).toContain('<span class="spoiler"');
+    expect(html).toContain('<strong>secret</strong>');
+    expect(html).toContain(' after');
+    expect(html).not.toContain('||');
+  });
+
   it('renders default timestamp styles and direct renderer fallbacks', () => {
     const html = renderMarkdown('<t:123>');
     expect(html).toContain('data-style="f"');
