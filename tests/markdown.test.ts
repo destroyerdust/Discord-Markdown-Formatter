@@ -21,6 +21,26 @@ test('preserves inline markdown inside subtext', () => {
   assert.match(html, /<p class="discord-subtext"><strong>bold<\/strong><\/p>/);
 });
 
+test('renders multi-line subtext as a single subtext paragraph', () => {
+  const html = renderMarkdown('-# first\n-# second');
+
+  assert.match(html, /<p class="discord-subtext">first\nsecond<\/p>/);
+  assert.doesNotMatch(html, /-# second/);
+});
+
+test('preserves inline markdown in multi-line subtext', () => {
+  const html = renderMarkdown('-# **first**\n-# second');
+
+  assert.match(html, /<p class="discord-subtext"><strong>first<\/strong>\nsecond<\/p>/);
+});
+
+test('does not partially convert mixed subtext paragraphs', () => {
+  const html = renderMarkdown('-# first\nsecond');
+
+  assert.doesNotMatch(html, /discord-subtext/);
+  assert.match(html, /<p>-# first\nsecond<\/p>/);
+});
+
 test('renders >>> multiline quote as a single blockquote', () => {
   const html = renderMarkdown('>>> line one\nline two');
   const blockquotes = html.match(/<blockquote>/g) ?? [];

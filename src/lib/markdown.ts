@@ -207,8 +207,17 @@ function subtextPlugin(md: MarkdownIt): void {
         continue;
       }
 
+      const lines = inline.content.split('\n');
+      const allNonEmptyLinesAreSubtext = lines.every(
+        (line) => line.trim() === '' || line.startsWith('-# ')
+      );
+
+      if (!allNonEmptyLinesAreSubtext) {
+        continue;
+      }
+
       open.attrJoin('class', 'discord-subtext');
-      inline.content = inline.content.slice(3);
+      inline.content = lines.map((line) => (line.trim() === '' ? line : line.slice(3))).join('\n');
       inline.children = [];
       state.md.inline.parse(inline.content, state.md, state.env, inline.children);
     }
