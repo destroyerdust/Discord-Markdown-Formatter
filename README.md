@@ -46,3 +46,9 @@ npm run dev
 - markdown-it + Prism.js (Markdown rendering)
 - Luxon (date/time handling)
 - DOMPurify (HTML sanitization)
+
+## Security Notes
+
+- The document-level CSP is delivered via a `<meta>` tag for directives that work there.
+- Anti-framing protection is delivered as HTTP response headers instead: `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`.
+- If you deploy this app behind a different static host or CDN, configure those same response headers there as well.

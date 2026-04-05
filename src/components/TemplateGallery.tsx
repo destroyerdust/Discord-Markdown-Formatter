@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { TEMPLATES, getTemplateCategories, type Template } from '../lib/templates';
 
@@ -24,10 +24,23 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [insertMode, setInsertMode] = useState<InsertMode>('replace');
   const [view, setView] = useState<GalleryView>('browse');
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(min-width: 1024px)').matches;
+  });
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleIdBase = useId();
   const categories = getTemplateCategories();
   const filteredTemplates = TEMPLATES.filter((template) => template.category === selectedCategory);
+  const mobileBrowseTitleId = `${titleIdBase}-mobile-browse`;
+  const mobileDetailTitleId = `${titleIdBase}-mobile-detail`;
+  const desktopTitleId = `${titleIdBase}-desktop`;
+  const activeTitleId = isDesktop
+    ? desktopTitleId
+    : view === 'detail'
+      ? mobileDetailTitleId
+      : mobileBrowseTitleId;
 
   const handleClose = useCallback(() => {
     setView('browse');
@@ -44,6 +57,16 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handleMediaChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleMediaChange);
+    return () => mediaQuery.removeEventListener('change', handleMediaChange);
+  }, []);
 
   // Close on click outside
   useEffect(() => {
@@ -101,7 +124,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
       className="fixed inset-0 z-50 bg-black/50 p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="template-gallery-title"
+      aria-labelledby={activeTitleId}
     >
       <div className="flex h-full items-end justify-center sm:items-center">
         <div
@@ -115,7 +138,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
               <div className="border-b border-[var(--border)]">
                 <div className="flex items-center justify-between px-4 py-4">
                   <h2
-                    id="template-gallery-title"
+                    id={mobileBrowseTitleId}
                     className="text-lg font-semibold text-[var(--fg-primary)]"
                   >
                     Template Gallery
@@ -194,7 +217,10 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                     <BackIcon />
                   </IconButton>
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-lg font-semibold text-[var(--fg-primary)]">
+                    <h2
+                      id={mobileDetailTitleId}
+                      className="truncate text-lg font-semibold text-[var(--fg-primary)]"
+                    >
                       {selectedTemplate?.name ?? 'Template Preview'}
                     </h2>
                     {selectedTemplate && (
@@ -248,7 +274,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
           <div className="hidden min-h-0 flex-1 flex-col lg:flex">
             <div className="flex items-center justify-between border-b border-[var(--border)] p-4">
               <h2
-                id="template-gallery-title"
+                id={desktopTitleId}
                 className="text-lg font-semibold text-[var(--fg-primary)]"
               >
                 Template Gallery
