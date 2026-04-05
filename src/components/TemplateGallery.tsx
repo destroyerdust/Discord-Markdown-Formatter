@@ -129,7 +129,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
       <div className="flex h-full items-end justify-center sm:items-center">
         <div
           ref={panelRef}
-          className="flex h-[min(100dvh-1rem,56rem)] w-full max-w-4xl flex-col overflow-hidden
+          className="flex h-[min(calc(100dvh_-_1rem),56rem)] w-full max-w-4xl flex-col overflow-hidden
                      rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] shadow-xl
                      lg:max-h-[85vh] lg:h-auto lg:rounded-lg"
         >
