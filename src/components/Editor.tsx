@@ -3,7 +3,16 @@ import { useAppStore } from '../store/useAppStore';
 import { Toolbar } from './Toolbar';
 import { CopyButton } from './CopyButton';
 import { CodeBlockModal } from './CodeBlockModal';
-import { toggleWrap, toggleBlockPrefix, toggleCodeBlock, insertMaskedLink } from '../lib/selection';
+import {
+  toggleWrap,
+  toggleBlockPrefix,
+  toggleHeader,
+  toggleSubtext,
+  toggleMultilineQuote,
+  toggleNumberedList,
+  toggleCodeBlock,
+  insertMaskedLink,
+} from '../lib/selection';
 
 export function Editor() {
   const content = useAppStore((state) => state.content);
@@ -73,6 +82,10 @@ export function Editor() {
     applyFormat((text, start, end) => toggleWrap(text, start, end, '~~'));
   }, [applyFormat]);
 
+  const handleHeader = useCallback(() => {
+    applyFormat((text, start, end) => toggleHeader(text, start, end));
+  }, [applyFormat]);
+
   const handleCode = useCallback(() => {
     applyFormat((text, start, end) => toggleWrap(text, start, end, '`'));
   }, [applyFormat]);
@@ -94,12 +107,24 @@ export function Editor() {
     applyFormat((text, start, end) => toggleWrap(text, start, end, '||'));
   }, [applyFormat]);
 
+  const handleSubtext = useCallback(() => {
+    applyFormat((text, start, end) => toggleSubtext(text, start, end));
+  }, [applyFormat]);
+
   const handleQuote = useCallback(() => {
     applyFormat((text, start, end) => toggleBlockPrefix(text, start, end, '>'));
   }, [applyFormat]);
 
+  const handleMultilineQuote = useCallback(() => {
+    applyFormat((text, start, end) => toggleMultilineQuote(text, start, end));
+  }, [applyFormat]);
+
   const handleList = useCallback(() => {
     applyFormat((text, start, end) => toggleBlockPrefix(text, start, end, '-'));
+  }, [applyFormat]);
+
+  const handleNumberedList = useCallback(() => {
+    applyFormat((text, start, end) => toggleNumberedList(text, start, end));
   }, [applyFormat]);
 
   const handleLink = useCallback(() => {
@@ -185,11 +210,15 @@ export function Editor() {
               onItalic={handleItalic}
               onUnderline={handleUnderline}
               onStrikethrough={handleStrikethrough}
+              onHeader={handleHeader}
               onCode={handleCode}
               onCodeBlock={handleCodeBlock}
               onSpoiler={handleSpoiler}
+              onSubtext={handleSubtext}
               onQuote={handleQuote}
+              onMultilineQuote={handleMultilineQuote}
               onList={handleList}
+              onNumberedList={handleNumberedList}
               onLink={handleLink}
               onTimestamp={handleTimestamp}
             />
@@ -210,6 +239,11 @@ export function Editor() {
 Try some Markdown:
 **bold** *italic* __underline__ ~~strikethrough~~
 ||spoiler|| `inline code`
+# Header
+-# Subtext
+
+>>> Multiline quote
+Still quoted here
 
 ```js
 // Code block
@@ -218,6 +252,7 @@ console.log('Hello, Discord!');
 
 > Block quote
 - List item
+1. Numbered item
 
 [masked link](https://example.com)
 

@@ -274,6 +274,13 @@ textarea.input {
   margin-bottom: 0;
 }
 
+.discord-preview .discord-subtext {
+  margin: 0 0 0.25rem;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.333;
+}
+
 .discord-preview strong,
 .discord-preview b {
   font-weight: 700;

@@ -11,11 +11,15 @@ interface ToolbarProps {
   onItalic: () => void;
   onUnderline: () => void;
   onStrikethrough: () => void;
+  onHeader: () => void;
   onCode: () => void;
   onCodeBlock: () => void;
   onSpoiler: () => void;
+  onSubtext: () => void;
   onQuote: () => void;
+  onMultilineQuote: () => void;
   onList: () => void;
+  onNumberedList: () => void;
   onLink: () => void;
   onTimestamp: () => void;
 }
@@ -54,11 +58,15 @@ export function Toolbar({
   onItalic,
   onUnderline,
   onStrikethrough,
+  onHeader,
   onCode,
   onCodeBlock,
   onSpoiler,
+  onSubtext,
   onQuote,
+  onMultilineQuote,
   onList,
+  onNumberedList,
   onLink,
   onTimestamp,
 }: ToolbarProps) {
@@ -151,6 +159,29 @@ export function Toolbar({
     },
     'divider',
     {
+      id: 'header',
+      label: 'Header',
+      action: onHeader,
+      icon: (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 12h8" />
+          <path d="M4 18V6" />
+          <path d="M12 18V6" />
+          <path d="M16 8h4" />
+          <path d="M18 6v12" />
+        </svg>
+      ),
+    },
+    {
       id: 'code',
       label: 'Inline Code',
       action: onCode,
@@ -215,6 +246,27 @@ export function Toolbar({
       ),
     },
     {
+      id: 'subtext',
+      label: 'Subtext',
+      action: onSubtext,
+      icon: (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 8h16" />
+          <path d="M8 14h12" />
+          <path d="M8 18h8" />
+        </svg>
+      ),
+    },
+    {
       id: 'quote',
       label: 'Block Quote',
       action: onQuote,
@@ -231,6 +283,26 @@ export function Toolbar({
         >
           <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z" />
           <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'multiline-quote',
+      label: 'Multiline Quote',
+      action: onMultilineQuote,
+      icon: (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M5 8h4v4H7v4H3v-4a4 4 0 0 1 2-4Z" />
+          <path d="M15 8h4v4h-2v4h-4v-4a4 4 0 0 1 2-4Z" />
         </svg>
       ),
     },
@@ -255,6 +327,30 @@ export function Toolbar({
           <line x1="3" x2="3.01" y1="6" y2="6" />
           <line x1="3" x2="3.01" y1="12" y2="12" />
           <line x1="3" x2="3.01" y1="18" y2="18" />
+        </svg>
+      ),
+    },
+    {
+      id: 'numbered-list',
+      label: 'Numbered List',
+      action: onNumberedList,
+      icon: (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M10 6h11" />
+          <path d="M10 12h11" />
+          <path d="M10 18h11" />
+          <path d="M4 7h2V5H4" />
+          <path d="M4 13h2V11H4" />
+          <path d="M4 17h2v2H4l2-2" />
         </svg>
       ),
     },

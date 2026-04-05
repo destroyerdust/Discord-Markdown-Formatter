@@ -12,6 +12,13 @@ export interface WrapResult {
   selection: SelectionRange;
 }
 
+interface ExpandedLineSelection {
+  before: string;
+  after: string;
+  lines: string[];
+  lineStart: number;
+}
+
 /**
  * Toggle wrapping of selected text with symmetric tokens (e.g., **bold**)
  * If already wrapped, unwrap. Otherwise, wrap.
@@ -120,6 +127,38 @@ export function insertAt(text: string, position: number, toInsert: string): Wrap
   };
 }
 
+function expandSelectionToLines(text: string, start: number, end: number): ExpandedLineSelection {
+  const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+  const lineEnd = text.indexOf('\n', end);
+  const actualEnd = lineEnd === -1 ? text.length : lineEnd;
+
+  return {
+    before: text.slice(0, lineStart),
+    after: text.slice(actualEnd),
+    lines: text.slice(lineStart, actualEnd).split('\n'),
+    lineStart,
+  };
+}
+
+function buildLineWrapResult(
+  originalText: string,
+  start: number,
+  end: number,
+  transform: (lines: string[]) => string[]
+): WrapResult {
+  const { before, after, lines, lineStart } = expandSelectionToLines(originalText, start, end);
+  const newSelected = transform(lines).join('\n');
+  const text = before + newSelected + after;
+
+  return {
+    text,
+    selection: {
+      start: lineStart,
+      end: lineStart + newSelected.length,
+    },
+  };
+}
+
 /**
  * Toggle block prefix (e.g., > for quotes, - for lists)
  * Applies to all lines in selection
@@ -130,49 +169,80 @@ export function toggleBlockPrefix(
   end: number,
   prefix: string
 ): WrapResult {
-  // Expand selection to include full lines
-  const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-  const lineEnd = text.indexOf('\n', end);
-  const actualEnd = lineEnd === -1 ? text.length : lineEnd;
-
-  const before = text.slice(0, lineStart);
-  const selected = text.slice(lineStart, actualEnd);
-  const after = text.slice(actualEnd);
-
-  const lines = selected.split('\n');
   const prefixWithSpace = prefix + ' ';
 
-  // Check if all lines already have the prefix
-  const allHavePrefix = lines.every(
-    (line) => line.startsWith(prefixWithSpace) || line.trim() === ''
-  );
-
-  let newLines: string[];
-  let deltaLength: number;
-
-  if (allHavePrefix) {
-    // Remove prefix from all lines
-    newLines = lines.map((line) =>
-      line.startsWith(prefixWithSpace) ? line.slice(prefixWithSpace.length) : line
+  return buildLineWrapResult(text, start, end, (lines) => {
+    const allHavePrefix = lines.every(
+      (line) => line.startsWith(prefixWithSpace) || line.trim() === ''
     );
-    deltaLength =
-      -prefixWithSpace.length * lines.filter((l) => l.startsWith(prefixWithSpace)).length;
-  } else {
-    // Add prefix to all non-empty lines
-    newLines = lines.map((line) => (line.trim() ? prefixWithSpace + line : line));
-    deltaLength = prefixWithSpace.length * lines.filter((l) => l.trim()).length;
-  }
 
-  const newSelected = newLines.join('\n');
-  const newText = before + newSelected + after;
+    if (allHavePrefix) {
+      return lines.map((line) =>
+        line.startsWith(prefixWithSpace) ? line.slice(prefixWithSpace.length) : line
+      );
+    }
 
-  return {
-    text: newText,
-    selection: {
-      start: lineStart,
-      end: actualEnd + deltaLength,
-    },
-  };
+    return lines.map((line) => (line.trim() ? prefixWithSpace + line : line));
+  });
+}
+
+/**
+ * Toggle a numbered list for the selected lines.
+ */
+export function toggleNumberedList(text: string, start: number, end: number): WrapResult {
+  return buildLineWrapResult(text, start, end, (lines) => {
+    const numberedPattern = /^\d+\.\s/;
+    const allNumbered = lines.every((line) => numberedPattern.test(line) || line.trim() === '');
+
+    if (allNumbered) {
+      return lines.map((line) =>
+        numberedPattern.test(line) ? line.replace(numberedPattern, '') : line
+      );
+    }
+
+    let nextNumber = 1;
+    return lines.map((line) => {
+      if (!line.trim()) return line;
+      const numberedLine = `${nextNumber}. ${line.replace(numberedPattern, '')}`;
+      nextNumber += 1;
+      return numberedLine;
+    });
+  });
+}
+
+/**
+ * Toggle a top-level Discord header for the selected lines.
+ */
+export function toggleHeader(text: string, start: number, end: number): WrapResult {
+  return toggleBlockPrefix(text, start, end, '#');
+}
+
+/**
+ * Toggle Discord subtext lines using the -# prefix.
+ */
+export function toggleSubtext(text: string, start: number, end: number): WrapResult {
+  return toggleBlockPrefix(text, start, end, '-#');
+}
+
+/**
+ * Toggle Discord's multiline quote marker on the first selected line.
+ */
+export function toggleMultilineQuote(text: string, start: number, end: number): WrapResult {
+  return buildLineWrapResult(text, start, end, (lines) => {
+    if (lines.length === 0) {
+      return ['>>> '];
+    }
+
+    const [firstLine, ...rest] = lines;
+    const hasMarker = firstLine === '>>>' || firstLine.startsWith('>>> ');
+
+    if (hasMarker) {
+      const unquoted = firstLine === '>>>' ? '' : firstLine.slice(4);
+      return [unquoted, ...rest];
+    }
+
+    return [`>>> ${firstLine}`, ...rest];
+  });
 }
 
 /**

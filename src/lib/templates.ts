@@ -198,9 +198,16 @@ console.log(greeting);
 > This is a block quote
 > It can span multiple lines
 
+>>> This is a multiline quote
+It continues without needing > on every line
+
+-# This is subtext for small, muted callouts
+
 - Bullet point one
 - Bullet point two
   - Nested item
+1. Numbered point one
+2. Numbered point two
 
 ## Links
 [Masked link text](https://example.com)`,
