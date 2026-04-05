@@ -11,7 +11,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-transform-types --test --test-concurrency=1 --experimental-test-isolation=none tests/markdown.test.ts tests/selection.test.ts"
   },
   "dependencies": {
     "@vvo/tzdb": "^6.198.0",

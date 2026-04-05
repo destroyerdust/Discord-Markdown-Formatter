@@ -9,13 +9,13 @@ import type Token from 'markdown-it/lib/token.mjs';
 import Prism from 'prismjs';
 
 // Load Prism languages
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-typescript';
-import 'prismjs/components/prism-python';
-import 'prismjs/components/prism-json';
-import 'prismjs/components/prism-bash';
-import 'prismjs/components/prism-css';
-import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-javascript.js';
+import 'prismjs/components/prism-typescript.js';
+import 'prismjs/components/prism-python.js';
+import 'prismjs/components/prism-json.js';
+import 'prismjs/components/prism-bash.js';
+import 'prismjs/components/prism-css.js';
+import 'prismjs/components/prism-markdown.js';
 
 // Language aliases (Discord uses some different names)
 const LANG_ALIASES: Record<string, string> = {
@@ -60,6 +60,42 @@ function escapeHtml(str: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Normalize Discord's >>> multiline quote syntax so markdown-it renders it as a single quote block.
+ * Discord applies the quote to the rest of the message, so every remaining line is quoted.
+ */
+function normalizeDiscordMarkdown(markdown: string): string {
+  const lines = markdown.split('\n');
+  const normalized: string[] = [];
+  let inFence = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trimStart();
+
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence;
+      normalized.push(line);
+      continue;
+    }
+
+    if (!inFence && /^>>>(?: |$)/.test(line)) {
+      const firstLineContent = line === '>>>' ? '' : line.slice(4);
+      normalized.push(`> ${firstLineContent}`);
+
+      for (let nextIndex = i + 1; nextIndex < lines.length; nextIndex++) {
+        normalized.push(`> ${lines[nextIndex]}`);
+      }
+
+      break;
+    }
+
+    normalized.push(line);
+  }
+
+  return normalized.join('\n');
 }
 
 /**
@@ -148,6 +184,43 @@ function spoilerPlugin(md: MarkdownIt): void {
     }
 
     return false;
+  });
+}
+
+/**
+ * Discord subtext is rendered as a normal paragraph with a special prefix.
+ * Re-tag matching paragraphs after inline parsing so the preview keeps normal markdown behavior.
+ */
+function subtextPlugin(md: MarkdownIt): void {
+  md.core.ruler.after('inline', 'discord_subtext', (state) => {
+    for (let i = 0; i < state.tokens.length - 2; i++) {
+      const open = state.tokens[i];
+      const inline = state.tokens[i + 1];
+      const close = state.tokens[i + 2];
+
+      if (
+        open.type !== 'paragraph_open' ||
+        inline.type !== 'inline' ||
+        close.type !== 'paragraph_close' ||
+        !inline.content.startsWith('-# ')
+      ) {
+        continue;
+      }
+
+      const lines = inline.content.split('\n');
+      const allNonEmptyLinesAreSubtext = lines.every(
+        (line) => line.trim() === '' || line.startsWith('-# ')
+      );
+
+      if (!allNonEmptyLinesAreSubtext) {
+        continue;
+      }
+
+      open.attrJoin('class', 'discord-subtext');
+      inline.content = lines.map((line) => (line.trim() === '' ? line : line.slice(3))).join('\n');
+      inline.children = [];
+      state.md.inline.parse(inline.content, state.md, state.env, inline.children);
+    }
   });
 }
 
@@ -285,13 +358,14 @@ function formatRelativeTime(epoch: number): string {
 // Apply custom plugins
 md.use(underlinePlugin);
 md.use(spoilerPlugin);
+md.use(subtextPlugin);
 md.use(timestampPlugin);
 
 /**
  * Render markdown to HTML (unsanitized - must be sanitized before display)
  */
 export function renderMarkdown(markdown: string): string {
-  return md.render(markdown);
+  return md.render(normalizeDiscordMarkdown(markdown));
 }
 
 /**

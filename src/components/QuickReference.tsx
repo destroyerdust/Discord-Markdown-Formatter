@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { TIMESTAMP_STYLES, formatTimestampPreview, type TimestampStyle } from '../lib/time';
 
@@ -16,10 +16,15 @@ const MARKDOWN_SYNTAX: SyntaxExample[] = [
   { syntax: '||text||', description: 'Spoiler', rendered: '<span class="spoiler">text</span>' },
   { syntax: '`code`', description: 'Inline Code', rendered: '<code>code</code>' },
   { syntax: '```lang\\ncode\\n```', description: 'Code Block' },
+  { syntax: '# Header', description: 'Large Header' },
+  { syntax: '## Header', description: 'Medium Header' },
+  { syntax: '### Header', description: 'Small Header' },
+  { syntax: '-# subtext', description: 'Subtext' },
   { syntax: '> quote', description: 'Block Quote' },
+  { syntax: '>>> multiline quote', description: 'Multiline Quote' },
   { syntax: '- item', description: 'Bullet List' },
+  { syntax: '1. item', description: 'Numbered List' },
   { syntax: '[text](url)', description: 'Masked Link', rendered: '<a href="#">text</a>' },
-  { syntax: '# Header', description: 'Header (h1-h6)' },
 ];
 
 const COMBINATION_EXAMPLES: SyntaxExample[] = [
@@ -27,18 +32,15 @@ const COMBINATION_EXAMPLES: SyntaxExample[] = [
   { syntax: '__**underline bold**__', description: 'Underline + Bold' },
   { syntax: '~~**strikethrough bold**~~', description: 'Strikethrough + Bold' },
   { syntax: '||**spoiler bold**||', description: 'Spoiler + Bold' },
+  { syntax: '-# __subtext__', description: 'Subtext + Underline' },
 ];
 
 export function QuickReference() {
   const isOpen = useAppStore((state) => state.isQuickReferenceOpen);
   const toggleQuickReference = useAppStore((state) => state.toggleQuickReference);
   const [activeTab, setActiveTab] = useState<'markdown' | 'timestamps'>('markdown');
+  const [exampleEpoch] = useState(() => Math.floor(Date.now() / 1000) + 300);
   const panelRef = useRef<HTMLDivElement>(null);
-
-  // Example epoch (changes every minute to show relative time updates)
-  const exampleEpoch = useMemo(() => {
-    return Math.floor(Date.now() / 1000) + 300; // 5 minutes in future
-  }, []);
 
   // Close on Escape
   useEffect(() => {
