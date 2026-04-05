@@ -56,6 +56,10 @@ export function formatRelativeDiscordTime(epoch: number): string {
   const diff = epoch - now;
   const absDiff = Math.abs(diff);
 
+  if (diff === 0) {
+    return 'now';
+  }
+
   if (absDiff < 60) {
     const secs = Math.floor(absDiff);
     const unit = secs === 1 ? 'second' : 'seconds';

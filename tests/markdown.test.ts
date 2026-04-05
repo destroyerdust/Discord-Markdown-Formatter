@@ -66,3 +66,16 @@ test('keeps existing markdown features intact', () => {
   assert.match(html, /<ol>/);
   assert.match(html, /<ul>/);
 });
+
+test('renders exact-current relative timestamps as now', () => {
+  const realNow = Date.now;
+  Date.now = () => 1_700_000_000_000;
+
+  try {
+    const html = renderMarkdown('<t:1700000000:R>');
+    assert.match(html, /data-style="R"/);
+    assert.match(html, />now<\/span>/);
+  } finally {
+    Date.now = realNow;
+  }
+});
