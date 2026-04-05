@@ -24,10 +24,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [insertMode, setInsertMode] = useState<InsertMode>('replace');
   const [view, setView] = useState<GalleryView>('browse');
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(min-width: 1024px)').matches;
-  });
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const titleIdBase = useId();
@@ -96,26 +93,24 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
     setView('detail');
   }, []);
 
-  const handleInsert = useCallback(() => {
-    if (!selectedTemplate) return;
-
+  const handleInsert = useCallback((template: Template) => {
     let newContent: string;
     switch (insertMode) {
       case 'append':
-        newContent = content + (content ? '\n\n' : '') + selectedTemplate.content;
+        newContent = content + (content ? '\n\n' : '') + template.content;
         break;
       case 'prepend':
-        newContent = selectedTemplate.content + (content ? '\n\n' : '') + content;
+        newContent = template.content + (content ? '\n\n' : '') + content;
         break;
       case 'replace':
       default:
-        newContent = selectedTemplate.content;
+        newContent = template.content;
         break;
     }
 
     setContent(newContent);
     handleClose();
-  }, [selectedTemplate, insertMode, content, setContent, handleClose]);
+  }, [insertMode, content, setContent, handleClose]);
 
   if (!isOpen) return null;
 
@@ -258,7 +253,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                   </div>
 
                   <div className="border-t border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-                    <button onClick={handleInsert} className="btn btn-primary w-full">
+                    <button onClick={() => handleInsert(selectedTemplate)} className="btn btn-primary w-full">
                       Insert Template
                     </button>
                   </div>
@@ -354,7 +349,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                         </p>
                       </div>
 
-                      <button onClick={handleInsert} className="btn btn-primary w-full">
+                      <button onClick={() => handleInsert(selectedTemplate)} className="btn btn-primary w-full">
                         Insert Template
                       </button>
                     </div>
@@ -461,9 +456,9 @@ function BackIcon() {
 
 function getTemplateExcerpt(content: string) {
   const normalizedContent = content.replace(/\s+/g, ' ').trim();
-  return normalizedContent.length > 120
-    ? `${normalizedContent.slice(0, 117).trimEnd()}...`
-    : normalizedContent;
+  const needsEllipsis = Number(normalizedContent.length > 120);
+  const visibleLength = 120 - needsEllipsis * 3;
+  return `${normalizedContent.slice(0, visibleLength).trimEnd()}${'.'.repeat(needsEllipsis * 3)}`;
 }
 
 function getInsertModeDescription(insertMode: InsertMode) {

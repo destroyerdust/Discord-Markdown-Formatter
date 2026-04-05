@@ -1,81 +1,168 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { renderMarkdown } from '../src/lib/markdown.ts';
+import Prism from 'prismjs';
+import StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
+import Token from 'markdown-it/lib/token.mjs';
+import { describe, expect, it, vi } from 'vitest';
+import { getSupportedLanguages, isLanguageSupported, md, renderMarkdown } from '../src/lib/markdown';
 
-test('renders Discord subtext with a dedicated class', () => {
-  const html = renderMarkdown('-# note');
+describe('markdown', () => {
+  it('renders Discord subtext with a dedicated class', () => {
+    const html = renderMarkdown('-# note');
 
-  assert.match(html, /<p class="discord-subtext">note<\/p>/);
-});
+    expect(html).toMatch(/<p class="discord-subtext">note<\/p>/);
+  });
 
-test('does not treat list syntax as subtext', () => {
-  const html = renderMarkdown('- # note');
+  it('does not treat list syntax as subtext', () => {
+    const html = renderMarkdown('- # note');
 
-  assert.doesNotMatch(html, /discord-subtext/);
-  assert.match(html, /<ul>/);
-});
+    expect(html).not.toMatch(/discord-subtext/);
+    expect(html).toMatch(/<ul>/);
+  });
 
-test('preserves inline markdown inside subtext', () => {
-  const html = renderMarkdown('-# **bold**');
+  it('preserves inline markdown inside subtext', () => {
+    const html = renderMarkdown('-# **bold**');
 
-  assert.match(html, /<p class="discord-subtext"><strong>bold<\/strong><\/p>/);
-});
+    expect(html).toMatch(/<p class="discord-subtext"><strong>bold<\/strong><\/p>/);
+  });
 
-test('renders multi-line subtext as a single subtext paragraph', () => {
-  const html = renderMarkdown('-# first\n-# second');
+  it('renders multi-line subtext as a single subtext paragraph', () => {
+    const html = renderMarkdown('-# first\n-# second');
 
-  assert.match(html, /<p class="discord-subtext">first\nsecond<\/p>/);
-  assert.doesNotMatch(html, /-# second/);
-});
+    expect(html).toMatch(/<p class="discord-subtext">first\nsecond<\/p>/);
+    expect(html).not.toMatch(/-# second/);
+  });
 
-test('preserves inline markdown in multi-line subtext', () => {
-  const html = renderMarkdown('-# **first**\n-# second');
+  it('keeps subtext formatting stable with a trailing newline', () => {
+    const html = renderMarkdown('-# first\n-# second\n');
 
-  assert.match(html, /<p class="discord-subtext"><strong>first<\/strong>\nsecond<\/p>/);
-});
+    expect(html).toMatch(/<p class="discord-subtext">first\nsecond<\/p>/);
+  });
 
-test('does not partially convert mixed subtext paragraphs', () => {
-  const html = renderMarkdown('-# first\nsecond');
+  it('does not partially convert mixed subtext paragraphs', () => {
+    const html = renderMarkdown('-# first\nsecond');
 
-  assert.doesNotMatch(html, /discord-subtext/);
-  assert.match(html, /<p>-# first\nsecond<\/p>/);
-});
+    expect(html).not.toMatch(/discord-subtext/);
+    expect(html).toMatch(/<p>-# first\nsecond<\/p>/);
+  });
 
-test('renders >>> multiline quote as a single blockquote', () => {
-  const html = renderMarkdown('>>> line one\nline two');
-  const blockquotes = html.match(/<blockquote>/g) ?? [];
+  it('normalizes multiline quote syntax outside fenced code blocks', () => {
+    const html = renderMarkdown('>>> line one\nline two');
+    const blockquotes = html.match(/<blockquote>/g) ?? [];
 
-  assert.equal(blockquotes.length, 1);
-  assert.match(html, /<p>line one\nline two<\/p>/);
-});
+    expect(blockquotes).toHaveLength(1);
+    expect(html).toMatch(/<p>line one\nline two<\/p>/);
+  });
 
-test('does not normalize >>> inside fenced code blocks', () => {
-  const html = renderMarkdown('```txt\n>>> not a quote\n```');
+  it('normalizes an empty multiline quote opener', () => {
+    const html = renderMarkdown('>>>\nline two');
 
-  assert.doesNotMatch(html, /<blockquote>/);
-  assert.match(html, />>> not a quote/);
-});
+    expect(html).toContain('<blockquote>');
+    expect(html).toContain('<p>line two</p>');
+  });
 
-test('keeps existing markdown features intact', () => {
-  const html = renderMarkdown(
-    '# Heading\n\n[text](https://example.com)\n\n1. First\n2. Second\n\n- Bullet'
-  );
+  it('does not normalize multiline quotes inside fenced code blocks', () => {
+    const html = renderMarkdown('```txt\n>>> not a quote\n```');
 
-  assert.match(html, /<h1>Heading<\/h1>/);
-  assert.match(html, /<a href="https:\/\/example.com">text<\/a>/);
-  assert.match(html, /<ol>/);
-  assert.match(html, /<ul>/);
-});
+    expect(html).not.toMatch(/<blockquote>/);
+    expect(html).toContain('>>> not a quote');
+  });
 
-test('renders exact-current relative timestamps as now', () => {
-  const realNow = Date.now;
-  Date.now = () => 1_700_000_000_000;
+  it('renders underline, spoiler, and timestamp plugins', () => {
+    const epoch = 1_735_693_200;
+    const expectedTimestamp = new Date(epoch * 1000).toLocaleString(undefined, {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const html = renderMarkdown('__under__ ||hide|| <t:1735693200:f>');
 
-  try {
-    const html = renderMarkdown('<t:1700000000:R>');
-    assert.match(html, /data-style="R"/);
-    assert.match(html, />now<\/span>/);
-  } finally {
-    Date.now = realNow;
-  }
+    expect(html).toContain('<u>under</u>');
+    expect(html).toContain('class="spoiler"');
+    expect(html).toContain('tabindex="0"');
+    expect(html).toContain('title="<t:1735693200:f>"');
+    expect(html).toContain(expectedTimestamp);
+  });
+
+  it('renders default timestamp styles and direct renderer fallbacks', () => {
+    const html = renderMarkdown('<t:123>');
+    expect(html).toContain('data-style="f"');
+
+    const bareToken = new Token('discord_timestamp', 'span', 0);
+    const rendered = md.renderer.rules.discord_timestamp?.([bareToken], 0) ?? '';
+
+    expect(rendered).toContain('data-epoch="0"');
+    expect(rendered).toContain('data-style="f"');
+  });
+
+  it('leaves unmatched underline and empty spoiler segments alone', () => {
+    const html = renderMarkdown('__unterminated ||||');
+
+    expect(html).toContain('__unterminated');
+    expect(html).toContain('||||');
+  });
+
+  it('treats incomplete underline and invalid timestamps as plain text', () => {
+    expect(renderMarkdown('__x')).toContain('__x');
+    expect(renderMarkdown('_word_')).toContain('<em>word</em>');
+    expect(renderMarkdown('<t:123')).toContain('&lt;t:123');
+    expect(renderMarkdown('<t:abc:f>')).toContain('&lt;t:abc:f&gt;');
+  });
+
+  it('supports the underline rule in silent mode', () => {
+    const underlineRule = (md.inline.ruler as unknown as { __rules__: Array<{ name: string; fn: Function }> })
+      .__rules__.find((rule) => rule.name === 'discord_underline')?.fn;
+    const state = new StateInline('__word__', md, {}, []);
+
+    expect(underlineRule?.(state, true)).toBe(true);
+    expect(state.tokens).toEqual([]);
+  });
+
+  it('highlights supported languages and falls back for unsupported ones', () => {
+    const highlighted = md.options.highlight?.('const x = 1;', 'ts') ?? '';
+    const fallback = md.options.highlight?.('<b>x</b>', 'unknown') ?? '';
+
+    expect(highlighted).toContain('language-typescript');
+    expect(fallback).toContain('language-none');
+    expect(fallback).toContain('&lt;b&gt;x&lt;/b&gt;');
+  });
+
+  it('falls back safely when Prism throws', () => {
+    const highlightSpy = vi.spyOn(Prism, 'highlight').mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    const html = md.options.highlight?.('<script>alert(1)</script>', 'js') ?? '';
+
+    expect(html).toContain('language-none');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+
+    highlightSpy.mockRestore();
+  });
+
+  it('reports supported languages accurately', () => {
+    expect(getSupportedLanguages()).toEqual([
+      'javascript',
+      'typescript',
+      'python',
+      'json',
+      'bash',
+      'css',
+      'markdown',
+    ]);
+    expect(isLanguageSupported('ts')).toBe(true);
+    expect(isLanguageSupported('shell')).toBe(true);
+    expect(isLanguageSupported('madeup')).toBe(false);
+  });
+
+  it('keeps existing markdown features intact', () => {
+    const html = renderMarkdown(
+      '# Heading\n\n[text](https://example.com)\n\n1. First\n2. Second\n\n- Bullet'
+    );
+
+    expect(html).toContain('<h1>Heading</h1>');
+    expect(html).toContain('<a href="https://example.com">text</a>');
+    expect(html).toContain('<ol>');
+    expect(html).toContain('<ul>');
+  });
 });

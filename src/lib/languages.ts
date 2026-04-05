@@ -3,6 +3,8 @@
  * Supports lazy-loading of additional Prism languages
  */
 
+import Prism from 'prismjs';
+
 export interface LanguageInfo {
   id: string;
   name: string;
@@ -56,6 +58,11 @@ export const ALL_LANGUAGES: LanguageInfo[] = [...CORE_LANGUAGES, ...ADDITIONAL_L
 
 // Track loaded state
 const loadedLanguages = new Set<string>(CORE_LANGUAGES.map((l) => l.id));
+
+export async function importPrismLanguageComponent(resolved: string): Promise<void> {
+  Object.assign(globalThis, { Prism });
+  await import(/* @vite-ignore */ `prismjs/components/prism-${resolved}.min.js`);
+}
 
 /**
  * Get all available languages for the picker
@@ -127,8 +134,7 @@ export async function loadLanguage(langId: string): Promise<boolean> {
   }
 
   try {
-    // Dynamic import of Prism language component
-    await import(/* @vite-ignore */ `prismjs/components/prism-${resolved}.min.js`);
+    await importPrismLanguageComponent(resolved);
     loadedLanguages.add(resolved);
     langInfo.loaded = true;
     return true;

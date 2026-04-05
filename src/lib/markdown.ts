@@ -5,7 +5,7 @@
 
 import MarkdownIt from 'markdown-it';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
-import type Token from 'markdown-it/lib/token.mjs';
+import Token from 'markdown-it/lib/token.mjs';
 import Prism from 'prismjs';
 import { formatDiscordTimestamp } from './discordTimestamp.ts';
 
@@ -147,44 +147,55 @@ function underlinePlugin(md: MarkdownIt): void {
  * Custom inline rule for Discord spoiler: ||text||
  */
 function spoilerPlugin(md: MarkdownIt): void {
-  md.inline.ruler.before('emphasis', 'discord_spoiler', (state: StateInline, silent: boolean) => {
-    const start = state.pos;
-
-    // Need ||
-    if (state.src.charCodeAt(start) !== 0x7c /* | */) return false;
-    if (state.src.charCodeAt(start + 1) !== 0x7c) return false;
-
-    // Need at least ||x||
-    if (start + 4 >= state.posMax) return false;
-
-    // Find closing ||
-    const content_start = start + 2;
-    let pos = content_start;
-
-    while (pos < state.posMax - 1) {
-      if (state.src.charCodeAt(pos) === 0x7c && state.src.charCodeAt(pos + 1) === 0x7c) {
-        // Found closing
-        if (!silent) {
-          const token_o = state.push('spoiler_open', 'span', 1);
-          token_o.markup = '||';
-          token_o.attrSet('class', 'spoiler');
-          token_o.attrSet('tabindex', '0');
-          token_o.attrSet('role', 'button');
-          token_o.attrSet('aria-label', 'Spoiler (click to reveal)');
-
-          const token_t = state.push('text', '', 0);
-          token_t.content = state.src.slice(content_start, pos);
-
-          const token_c = state.push('spoiler_close', 'span', -1);
-          token_c.markup = '||';
-        }
-        state.pos = pos + 2;
-        return true;
+  md.core.ruler.after('inline', 'discord_spoiler', (state) => {
+    for (const blockToken of state.tokens) {
+      if (blockToken.type !== 'inline' || !blockToken.children) {
+        continue;
       }
-      pos++;
-    }
 
-    return false;
+      const transformedChildren: Token[] = [];
+
+      for (const childToken of blockToken.children) {
+        if (childToken.type !== 'text' || !childToken.content.includes('||')) {
+          transformedChildren.push(childToken);
+          continue;
+        }
+
+        const segments = childToken.content.split(/(\|\|[\s\S]+?\|\|)/);
+
+        for (const segment of segments) {
+          if (!segment) {
+            continue;
+          }
+
+          if (!segment.startsWith('||') || !segment.endsWith('||')) {
+            const textToken = new Token('text', '', 0);
+            textToken.content = segment;
+            transformedChildren.push(textToken);
+            continue;
+          }
+
+          const innerContent = segment.slice(2, -2);
+          const spoilerOpen = new Token('spoiler_open', 'span', 1);
+          spoilerOpen.markup = '||';
+          spoilerOpen.attrSet('class', 'spoiler');
+          spoilerOpen.attrSet('tabindex', '0');
+          spoilerOpen.attrSet('role', 'button');
+          spoilerOpen.attrSet('aria-label', 'Spoiler (click to reveal)');
+          transformedChildren.push(spoilerOpen);
+
+          const parsedChildren: Token[] = [];
+          state.md.inline.parse(innerContent, state.md, state.env, parsedChildren);
+          transformedChildren.push(...parsedChildren);
+
+          const spoilerClose = new Token('spoiler_close', 'span', -1);
+          spoilerClose.markup = '||';
+          transformedChildren.push(spoilerClose);
+        }
+      }
+
+      blockToken.children = transformedChildren;
+    }
   });
 }
 
@@ -218,7 +229,7 @@ function subtextPlugin(md: MarkdownIt): void {
       }
 
       open.attrJoin('class', 'discord-subtext');
-      inline.content = lines.map((line) => (line.trim() === '' ? line : line.slice(3))).join('\n');
+      inline.content = lines.map((line) => line.slice(3)).join('\n');
       inline.children = [];
       state.md.inline.parse(inline.content, state.md, state.env, inline.children);
     }
