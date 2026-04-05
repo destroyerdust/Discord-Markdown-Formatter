@@ -28,21 +28,6 @@ export function TimestampBuilder() {
 
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Update defaults when timezone changes in settings
-  useEffect(() => {
-    if (tz !== timezone) {
-      setTimezone(tz);
-    }
-  }, [tz]);
-
-  // Reset to current time when opening
-  useEffect(() => {
-    if (isOpen) {
-      setDate(getCurrentDate(timezone));
-      setTime(getCurrentTime(timezone));
-    }
-  }, [isOpen, timezone]);
-
   // Close on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,6 +77,12 @@ export function TimestampBuilder() {
     },
     [timezone]
   );
+
+  const handleResetToNow = useCallback(() => {
+    setDate(getCurrentDate(timezone));
+    setTime(getCurrentTime(timezone));
+    setStyle('f');
+  }, [timezone]);
 
   // Insert timestamp into editor
   const handleInsert = useCallback(() => {
@@ -288,6 +279,9 @@ export function TimestampBuilder() {
 
         {/* Footer */}
         <div className="flex justify-end gap-2 p-4 border-t border-[var(--border)]">
+          <button onClick={handleResetToNow} className="btn btn-secondary">
+            Reset
+          </button>
           <button onClick={toggleTimestampBuilder} className="btn btn-secondary">
             Cancel
           </button>

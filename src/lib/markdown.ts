@@ -7,6 +7,7 @@ import MarkdownIt from 'markdown-it';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import Prism from 'prismjs';
+import { formatDiscordTimestamp } from './discordTimestamp.ts';
 
 // Load Prism languages
 import 'prismjs/components/prism-javascript.js';
@@ -253,7 +254,7 @@ function timestampPlugin(md: MarkdownIt): void {
       token.attrSet('class', 'discord-timestamp');
       token.attrSet('data-epoch', String(epoch));
       token.attrSet('data-style', style);
-      token.content = formatTimestamp(epoch, style);
+      token.content = formatDiscordTimestamp(epoch, style);
     }
 
     state.pos = end + 1;
@@ -264,95 +265,9 @@ function timestampPlugin(md: MarkdownIt): void {
     const token = tokens[idx];
     const epoch = token.attrGet('data-epoch') || '0';
     const style = token.attrGet('data-style') || 'f';
-    const formatted = formatTimestamp(parseInt(epoch, 10), style);
+    const formatted = formatDiscordTimestamp(parseInt(epoch, 10), style);
     return `<span class="discord-timestamp" data-epoch="${epoch}" data-style="${style}" title="${token.markup}">${formatted}</span>`;
   };
-}
-
-/**
- * Format a Unix timestamp according to Discord's style codes
- */
-function formatTimestamp(epoch: number, style: string): string {
-  const date = new Date(epoch * 1000);
-
-  switch (style) {
-    case 't': // Short time: 9:41 PM
-      return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    case 'T': // Long time: 9:41:30 PM
-      return date.toLocaleTimeString(undefined, {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    case 'd': // Short date: 11/28/2018
-      return date.toLocaleDateString(undefined, {
-        month: 'numeric',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    case 'D': // Long date: November 28, 2018
-      return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-    case 'f': // Short date/time: November 28, 2018 9:41 PM
-      return date.toLocaleString(undefined, {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    case 'F': // Long date/time: Wednesday, November 28, 2018 9:41 PM
-      return date.toLocaleString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    case 'R': // Relative: 3 years ago
-      return formatRelativeTime(epoch);
-    default:
-      return date.toLocaleString();
-  }
-}
-
-/**
- * Format relative time (e.g., "3 hours ago", "in 5 minutes")
- */
-function formatRelativeTime(epoch: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = epoch - now;
-  const absDiff = Math.abs(diff);
-
-  const units: [number, string, string][] = [
-    [60, 'second', 'seconds'],
-    [60 * 60, 'minute', 'minutes'],
-    [60 * 60 * 24, 'hour', 'hours'],
-    [60 * 60 * 24 * 30, 'day', 'days'],
-    [60 * 60 * 24 * 365, 'month', 'months'],
-    [Infinity, 'year', 'years'],
-  ];
-
-  let value = absDiff;
-  let unit = 'seconds';
-
-  for (let i = 0; i < units.length; i++) {
-    const [threshold, singular, plural] = units[i];
-    if (absDiff < threshold) {
-      const prevThreshold = i > 0 ? units[i - 1][0] : 1;
-      value = Math.floor(absDiff / prevThreshold);
-      unit = value === 1 ? singular : plural;
-      break;
-    }
-  }
-
-  if (diff < 0) {
-    return `${value} ${unit} ago`;
-  } else if (diff > 0) {
-    return `in ${value} ${unit}`;
-  } else {
-    return 'now';
-  }
 }
 
 // Apply custom plugins

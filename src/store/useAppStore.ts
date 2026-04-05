@@ -76,8 +76,38 @@ export interface AppState {
   hydrate: () => void;
 }
 
+const CONTENT_SAVE_DEBOUNCE_MS = 250;
+let contentSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingContent = '';
+
 function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
   return Math.random().toString(36).substring(2, 11);
+}
+
+function scheduleContentSave(content: string): void {
+  pendingContent = content;
+
+  if (contentSaveTimer !== null) {
+    clearTimeout(contentSaveTimer);
+  }
+
+  contentSaveTimer = setTimeout(() => {
+    contentSaveTimer = null;
+    saveContent(pendingContent);
+  }, CONTENT_SAVE_DEBOUNCE_MS);
+}
+
+export function flushPendingContentSave(): void {
+  if (contentSaveTimer === null) {
+    return;
+  }
+
+  clearTimeout(contentSaveTimer);
+  contentSaveTimer = null;
+  saveContent(pendingContent);
 }
 
 export const useAppStore = create<AppState>()(
@@ -105,7 +135,7 @@ export const useAppStore = create<AppState>()(
     // Editor actions
     setContent: (content) => {
       set({ content });
-      saveContent(content);
+      scheduleContentSave(content);
     },
 
     setSelection: (selection) => set({ selection }),
@@ -152,7 +182,7 @@ export const useAppStore = create<AppState>()(
       const draft = drafts.find((d) => d.id === id);
       if (draft) {
         set({ content: draft.content });
-        saveContent(draft.content);
+        scheduleContentSave(draft.content);
       }
     },
 

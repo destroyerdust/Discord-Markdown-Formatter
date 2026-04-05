@@ -273,10 +273,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
 
           <div className="hidden min-h-0 flex-1 flex-col lg:flex">
             <div className="flex items-center justify-between border-b border-[var(--border)] p-4">
-              <h2
-                id={desktopTitleId}
-                className="text-lg font-semibold text-[var(--fg-primary)]"
-              >
+              <h2 id={desktopTitleId} className="text-lg font-semibold text-[var(--fg-primary)]">
                 Template Gallery
               </h2>
               <IconButton onClick={handleClose} ariaLabel="Close template gallery">
