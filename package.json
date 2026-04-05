@@ -14,11 +14,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.18",
     "@vvo/tzdb": "^6.198.0",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.3.2",
     "luxon": "^3.7.2",
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^14.1.1",
     "prismjs": "^1.30.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -27,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@tailwindcss/vite": "^4.1.18",
     "@types/dompurify": "^3.0.5",
     "@types/luxon": "^3.7.1",
     "@types/markdown-it": "^14.1.2",
