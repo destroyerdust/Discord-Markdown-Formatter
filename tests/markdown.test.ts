@@ -102,6 +102,28 @@ describe('markdown', () => {
     expect(html).not.toContain('||');
   });
 
+  it('keeps escaped spoiler delimiters literal', () => {
+    const html = renderMarkdown('\\||secret||');
+
+    expect(html).toContain('<p>||secret||</p>');
+    expect(html).not.toContain('class="spoiler"');
+  });
+
+  it('does not let escaped spoiler delimiters consume later real spoilers', () => {
+    const html = renderMarkdown('\\||a|| and ||b||');
+
+    expect(html).toContain('||a|| and ');
+    expect(html).toContain('<span class="spoiler"');
+    expect(html).toContain('>b</span>');
+  });
+
+  it('keeps escaped spoiler openers literal when no matching literal closer exists', () => {
+    const html = renderMarkdown('\\||open only');
+
+    expect(html).toContain('<p>||open only</p>');
+    expect(html).not.toContain('class="spoiler"');
+  });
+
   it('renders default timestamp styles and direct renderer fallbacks', () => {
     const html = renderMarkdown('<t:123>');
     expect(html).toContain('data-style="f"');

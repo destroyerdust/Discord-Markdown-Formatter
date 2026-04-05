@@ -147,11 +147,15 @@ function underlinePlugin(md: MarkdownIt): void {
  * Custom inline rule for Discord spoiler: ||text||
  */
 function spoilerPlugin(md: MarkdownIt): void {
-  const createTextToken = (content: string, level: number): Token => {
-    const textToken = new Token('text', '', 0);
-    textToken.content = content;
-    textToken.level = level;
-    return textToken;
+  const parseInlineFragment = (
+    content: string,
+    state: { md: MarkdownIt; env: unknown },
+    output: Token[]
+  ): void => {
+    if (!content) {
+      return;
+    }
+    state.md.inline.parse(content, state.md, state.env, output);
   };
 
   const createSpoilerOpen = (): Token => {
@@ -170,101 +174,102 @@ function spoilerPlugin(md: MarkdownIt): void {
     return spoilerClose;
   };
 
+  const isEscaped = (content: string, index: number): boolean => {
+    let backslashCount = 0;
+
+    for (let cursor = index - 1; cursor >= 0 && content[cursor] === '\\'; cursor--) {
+      backslashCount++;
+    }
+
+    return backslashCount % 2 === 1;
+  };
+
+  const findNextUnescapedDelimiter = (
+    content: string,
+    start: number,
+    reservedDelimiters: Set<number>
+  ): number => {
+    for (let cursor = start; cursor < content.length - 1; cursor++) {
+      if (
+        content[cursor] === '|' &&
+        content[cursor + 1] === '|' &&
+        !isEscaped(content, cursor) &&
+        !reservedDelimiters.has(cursor)
+      ) {
+        return cursor;
+      }
+    }
+
+    return -1;
+  };
+
   md.core.ruler.after('inline', 'discord_spoiler', (state) => {
     for (const blockToken of state.tokens) {
-      if (blockToken.type !== 'inline' || !blockToken.children) {
+      if (blockToken.type !== 'inline' || !blockToken.children || !blockToken.content.includes('||')) {
         continue;
       }
 
       const transformedChildren: Token[] = [];
-      const originalChildren = blockToken.children;
-      let childIndex = 0;
+      const reservedLiteralDelimiters = new Set<number>();
+      let cursor = 0;
+      let foundSpoiler = false;
 
-      while (childIndex < originalChildren.length) {
-        const childToken = originalChildren[childIndex];
+      for (let index = 0; index < blockToken.content.length - 1; index++) {
+        if (
+          blockToken.content[index] === '|' &&
+          blockToken.content[index + 1] === '|' &&
+          isEscaped(blockToken.content, index)
+        ) {
+          reservedLiteralDelimiters.add(index);
+          const closingLiteralIndex = findNextUnescapedDelimiter(
+            blockToken.content,
+            index + 2,
+            reservedLiteralDelimiters
+          );
 
-        if (childToken.type !== 'text' || !childToken.content.includes('||')) {
-          transformedChildren.push(childToken);
-          childIndex++;
-          continue;
-        }
-
-        let currentTextToken = childToken;
-        let textCursor = 0;
-
-        while (true) {
-          const openIndex = currentTextToken.content.indexOf('||', textCursor);
-
-          if (openIndex === -1) {
-            const trailingText = currentTextToken.content.slice(textCursor);
-            if (trailingText) {
-              transformedChildren.push(createTextToken(trailingText, currentTextToken.level));
-            }
-            childIndex++;
-            break;
+          if (closingLiteralIndex !== -1) {
+            reservedLiteralDelimiters.add(closingLiteralIndex);
+            index = closingLiteralIndex + 1;
           }
-
-          const leadingText = currentTextToken.content.slice(textCursor, openIndex);
-          if (leadingText) {
-            transformedChildren.push(createTextToken(leadingText, currentTextToken.level));
-          }
-
-          const spoilerContent: Token[] = [];
-          let searchIndex = childIndex;
-          let searchOffset = openIndex + 2;
-          let foundClosingDelimiter = false;
-          let closeOffset = -1;
-
-          while (searchIndex < originalChildren.length) {
-            const searchToken = originalChildren[searchIndex];
-
-            if (searchToken.type !== 'text') {
-              spoilerContent.push(searchToken);
-              searchIndex++;
-              searchOffset = 0;
-              continue;
-            }
-
-            const closeIndex = searchToken.content.indexOf('||', searchOffset);
-
-            if (closeIndex === -1) {
-              const contentSlice = searchToken.content.slice(searchOffset);
-              if (contentSlice) {
-                spoilerContent.push(createTextToken(contentSlice, searchToken.level));
-              }
-              searchIndex++;
-              searchOffset = 0;
-              continue;
-            }
-
-            const contentBeforeClose = searchToken.content.slice(searchOffset, closeIndex);
-            if (contentBeforeClose) {
-              spoilerContent.push(createTextToken(contentBeforeClose, searchToken.level));
-            }
-
-            foundClosingDelimiter = spoilerContent.length > 0;
-            closeOffset = closeIndex + 2;
-            break;
-          }
-
-          if (!foundClosingDelimiter) {
-            const unmatchedText = currentTextToken.content.slice(openIndex);
-            transformedChildren.push(createTextToken(unmatchedText, currentTextToken.level));
-            childIndex++;
-            break;
-          }
-
-          transformedChildren.push(createSpoilerOpen());
-          transformedChildren.push(...spoilerContent);
-          transformedChildren.push(createSpoilerClose());
-
-          childIndex = searchIndex;
-          currentTextToken = originalChildren[childIndex];
-          textCursor = closeOffset;
         }
       }
 
-      blockToken.children = transformedChildren;
+      while (cursor < blockToken.content.length) {
+        const openIndex = findNextUnescapedDelimiter(
+          blockToken.content,
+          cursor,
+          reservedLiteralDelimiters
+        );
+
+        if (openIndex === -1) {
+          parseInlineFragment(blockToken.content.slice(cursor), state, transformedChildren);
+          break;
+        }
+
+        const closeIndex = findNextUnescapedDelimiter(
+          blockToken.content,
+          openIndex + 2,
+          reservedLiteralDelimiters
+        );
+
+        if (closeIndex === -1 || closeIndex === openIndex + 2) {
+          parseInlineFragment(blockToken.content.slice(cursor), state, transformedChildren);
+          break;
+        }
+
+        parseInlineFragment(blockToken.content.slice(cursor, openIndex), state, transformedChildren);
+
+        transformedChildren.push(createSpoilerOpen());
+        parseInlineFragment(blockToken.content.slice(openIndex + 2, closeIndex), state, transformedChildren);
+        transformedChildren.push(createSpoilerClose());
+
+        foundSpoiler = true;
+        cursor = closeIndex + 2;
+      }
+
+      if (foundSpoiler) {
+        blockToken.children = transformedChildren;
+      }
     }
   });
 }
