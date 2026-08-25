@@ -68,12 +68,10 @@ export function TimestampBuilder() {
   // Handle preset selection
   const handlePreset = useCallback(
     (presetId: string) => {
-      const preset = TIMESTAMP_PRESETS.find((p) => p.id === presetId);
-      if (preset) {
-        const dt = preset.getDateTime(timezone);
-        setDate(dt.toFormat('yyyy-MM-dd'));
-        setTime(dt.toFormat('HH:mm'));
-      }
+      const preset = TIMESTAMP_PRESETS.find((p) => p.id === presetId)!;
+      const dt = preset.getDateTime(timezone);
+      setDate(dt.toFormat('yyyy-MM-dd'));
+      setTime(dt.toFormat('HH:mm'));
     },
     [timezone]
   );

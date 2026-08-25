@@ -28,8 +28,7 @@ export function Editor() {
 
   // Get current selection from textarea
   const getSelection = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return { start: 0, end: 0 };
+    const textarea = textareaRef.current!;
     return {
       start: textarea.selectionStart,
       end: textarea.selectionEnd,
@@ -38,8 +37,7 @@ export function Editor() {
 
   // Set selection in textarea
   const setTextareaSelection = useCallback((start: number, end: number) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const textarea = textareaRef.current!;
 
     // Need to do this after React updates the value
     requestAnimationFrame(() => {
@@ -151,8 +149,7 @@ export function Editor() {
 
   // Keyboard shortcuts
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const textarea = textareaRef.current!;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.ctrlKey || e.metaKey;
@@ -233,6 +230,8 @@ export function Editor() {
             value={content}
             onChange={handleChange}
             onSelect={handleSelect}
+            onKeyUp={handleSelect}
+            onMouseUp={handleSelect}
             className="input w-full flex-1 min-h-0 font-mono text-sm resize-none leading-relaxed"
             placeholder="Type your Discord message here...
 

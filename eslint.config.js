@@ -26,4 +26,13 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    files: ['tests/**/*.{ts,tsx}', '*.config.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
 ]);

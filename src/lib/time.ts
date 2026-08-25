@@ -253,10 +253,6 @@ export function getCurrentTime(tz: string): string {
  * Validate if a timezone is valid
  */
 export function isValidTimezone(tz: string): boolean {
-  try {
-    const dt = DateTime.now().setZone(tz);
-    return dt.isValid;
-  } catch {
-    return false;
-  }
+  const dt = DateTime.now().setZone(tz);
+  return dt.isValid;
 }
