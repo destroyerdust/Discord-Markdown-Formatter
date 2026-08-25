@@ -5,7 +5,7 @@ describe('lib barrel', () => {
   it('re-exports the public utility surface', () => {
     expect(lib.renderMarkdown).toBeTypeOf('function');
     expect(lib.sanitizeHtml).toBeTypeOf('function');
-    expect(lib.toggleWrap).toBeTypeOf('function');
+    expect(lib.applyMessageFormatting).toBeTypeOf('function');
     expect(lib.copyToClipboard).toBeTypeOf('function');
     expect(lib.loadContent).toBeTypeOf('function');
     expect(lib.getAvailableLanguages).toBeTypeOf('function');

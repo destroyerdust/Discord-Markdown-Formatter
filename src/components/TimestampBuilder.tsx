@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { applyMessageFormatting } from '../lib/messageFormatting';
 import { CopyButton } from './CopyButton';
 import {
   TIMESTAMP_STYLES,
@@ -84,11 +85,16 @@ export function TimestampBuilder() {
 
   // Insert timestamp into editor
   const handleInsert = useCallback(() => {
-    const insertPos = selection?.end ?? content.length;
-    const before = content.slice(0, insertPos);
-    const after = content.slice(insertPos);
-    const newContent = before + token + after;
-    setContent(newContent);
+    const result = applyMessageFormatting(
+      content,
+      selection ?? { start: content.length, end: content.length },
+      { type: 'insertText', text: token }
+    );
+
+    if (result.type === 'applied') {
+      setContent(result.message);
+    }
+
     toggleTimestampBuilder();
   }, [content, setContent, selection, token, toggleTimestampBuilder]);
 
