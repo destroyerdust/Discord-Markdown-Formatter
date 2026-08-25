@@ -1,5 +1,8 @@
 /**
- * Text selection and formatting helpers for the editor
+ * Message formatting module for Discord-compatible editor operations.
+ *
+ * Callers provide a Message, the current selection, and a formatting intent.
+ * The implementation owns Discord Markdown syntax and cursor math behind this seam.
  */
 
 export interface SelectionRange {
@@ -7,10 +10,26 @@ export interface SelectionRange {
   end: number;
 }
 
-export interface WrapResult {
-  text: string;
-  selection: SelectionRange;
-}
+export type MessageFormattingIntent =
+  | { type: 'bold' }
+  | { type: 'italic' }
+  | { type: 'underline' }
+  | { type: 'strikethrough' }
+  | { type: 'header' }
+  | { type: 'inlineCode' }
+  | { type: 'codeBlock' }
+  | { type: 'codeBlockWithLanguage'; language: string }
+  | { type: 'spoiler' }
+  | { type: 'subtext' }
+  | { type: 'blockQuote' }
+  | { type: 'multilineQuote' }
+  | { type: 'bulletList' }
+  | { type: 'numberedList' }
+  | { type: 'maskedLink'; url?: string }
+  | { type: 'insertText'; text: string };
+
+export type MessageFormattingResult =
+  { type: 'applied'; message: string; selection: SelectionRange } | { type: 'needsCodeLanguage' };
 
 interface ExpandedLineSelection {
   before: string;
@@ -19,21 +38,78 @@ interface ExpandedLineSelection {
   lineStart: number;
 }
 
-/**
- * Toggle wrapping of selected text with symmetric tokens (e.g., **bold**)
- * If already wrapped, unwrap. Otherwise, wrap.
- */
-export function toggleWrap(text: string, start: number, end: number, token: string): WrapResult {
+interface WrapResult {
+  text: string;
+  selection: SelectionRange;
+}
+
+export function applyMessageFormatting(
+  message: string,
+  selection: SelectionRange,
+  intent: MessageFormattingIntent
+): MessageFormattingResult {
+  if (intent.type === 'codeBlock') {
+    return { type: 'needsCodeLanguage' };
+  }
+
+  const result = applyFormattingIntent(message, selection, intent);
+  return {
+    type: 'applied',
+    message: result.text,
+    selection: result.selection,
+  };
+}
+
+function applyFormattingIntent(
+  message: string,
+  selection: SelectionRange,
+  intent: Exclude<MessageFormattingIntent, { type: 'codeBlock' }>
+): WrapResult {
+  const { start, end } = selection;
+
+  switch (intent.type) {
+    case 'bold':
+      return toggleWrap(message, start, end, '**');
+    case 'italic':
+      return toggleWrap(message, start, end, '*');
+    case 'underline':
+      return toggleWrap(message, start, end, '__');
+    case 'strikethrough':
+      return toggleWrap(message, start, end, '~~');
+    case 'header':
+      return toggleBlockPrefix(message, start, end, '#');
+    case 'inlineCode':
+      return toggleWrap(message, start, end, '`');
+    case 'codeBlockWithLanguage':
+      return toggleCodeBlock(message, start, end, intent.language);
+    case 'spoiler':
+      return toggleWrap(message, start, end, '||');
+    case 'subtext':
+      return toggleBlockPrefix(message, start, end, '-#');
+    case 'blockQuote':
+      return toggleBlockPrefix(message, start, end, '>');
+    case 'multilineQuote':
+      return toggleMultilineQuote(message, start, end);
+    case 'bulletList':
+      return toggleBlockPrefix(message, start, end, '-');
+    case 'numberedList':
+      return toggleNumberedList(message, start, end);
+    case 'maskedLink':
+      return insertMaskedLink(message, start, end, intent.url);
+    case 'insertText':
+      return insertAt(message, end, intent.text);
+  }
+}
+
+function toggleWrap(text: string, start: number, end: number, token: string): WrapResult {
   const before = text.slice(0, start);
   const selected = text.slice(start, end);
   const after = text.slice(end);
 
-  // Check if selection is already wrapped
   const hasTokenBefore = before.endsWith(token);
   const hasTokenAfter = after.startsWith(token);
 
   if (hasTokenBefore && hasTokenAfter) {
-    // Unwrap: remove tokens from both sides
     const newText = before.slice(0, -token.length) + selected + after.slice(token.length);
     return {
       text: newText,
@@ -44,12 +120,10 @@ export function toggleWrap(text: string, start: number, end: number, token: stri
     };
   }
 
-  // Check if selected text itself starts/ends with token
   const selectedHasTokenStart = selected.startsWith(token);
   const selectedHasTokenEnd = selected.endsWith(token);
 
   if (selectedHasTokenStart && selectedHasTokenEnd && selected.length >= token.length * 2) {
-    // Unwrap: remove tokens from selection
     const unwrapped = selected.slice(token.length, -token.length);
     const newText = before + unwrapped + after;
     return {
@@ -61,7 +135,6 @@ export function toggleWrap(text: string, start: number, end: number, token: stri
     };
   }
 
-  // Wrap: add tokens around selection
   const newText = before + token + selected + token + after;
   return {
     text: newText,
@@ -72,51 +145,7 @@ export function toggleWrap(text: string, start: number, end: number, token: stri
   };
 }
 
-/**
- * Toggle wrapping with asymmetric tokens (e.g., [text](url))
- */
-export function toggleWrapAsymmetric(
-  text: string,
-  start: number,
-  end: number,
-  startToken: string,
-  endToken: string
-): WrapResult {
-  const before = text.slice(0, start);
-  const selected = text.slice(start, end);
-  const after = text.slice(end);
-
-  // Check if already wrapped
-  const hasTokenBefore = before.endsWith(startToken);
-  const hasTokenAfter = after.startsWith(endToken);
-
-  if (hasTokenBefore && hasTokenAfter) {
-    // Unwrap
-    const newText = before.slice(0, -startToken.length) + selected + after.slice(endToken.length);
-    return {
-      text: newText,
-      selection: {
-        start: start - startToken.length,
-        end: end - startToken.length,
-      },
-    };
-  }
-
-  // Wrap
-  const newText = before + startToken + selected + endToken + after;
-  return {
-    text: newText,
-    selection: {
-      start: start + startToken.length,
-      end: end + startToken.length,
-    },
-  };
-}
-
-/**
- * Insert text at cursor position
- */
-export function insertAt(text: string, position: number, toInsert: string): WrapResult {
+function insertAt(text: string, position: number, toInsert: string): WrapResult {
   const newText = text.slice(0, position) + toInsert + text.slice(position);
   return {
     text: newText,
@@ -159,16 +188,7 @@ function buildLineWrapResult(
   };
 }
 
-/**
- * Toggle block prefix (e.g., > for quotes, - for lists)
- * Applies to all lines in selection
- */
-export function toggleBlockPrefix(
-  text: string,
-  start: number,
-  end: number,
-  prefix: string
-): WrapResult {
+function toggleBlockPrefix(text: string, start: number, end: number, prefix: string): WrapResult {
   const prefixWithSpace = prefix + ' ';
 
   return buildLineWrapResult(text, start, end, (lines) => {
@@ -186,10 +206,7 @@ export function toggleBlockPrefix(
   });
 }
 
-/**
- * Toggle a numbered list for the selected lines.
- */
-export function toggleNumberedList(text: string, start: number, end: number): WrapResult {
+function toggleNumberedList(text: string, start: number, end: number): WrapResult {
   return buildLineWrapResult(text, start, end, (lines) => {
     const numberedPattern = /^\d+\.\s/;
     const allNumbered = lines.every((line) => numberedPattern.test(line) || line.trim() === '');
@@ -208,24 +225,7 @@ export function toggleNumberedList(text: string, start: number, end: number): Wr
   });
 }
 
-/**
- * Toggle a top-level Discord header for the selected lines.
- */
-export function toggleHeader(text: string, start: number, end: number): WrapResult {
-  return toggleBlockPrefix(text, start, end, '#');
-}
-
-/**
- * Toggle Discord subtext lines using the -# prefix.
- */
-export function toggleSubtext(text: string, start: number, end: number): WrapResult {
-  return toggleBlockPrefix(text, start, end, '-#');
-}
-
-/**
- * Toggle Discord's multiline quote marker on the first selected line.
- */
-export function toggleMultilineQuote(text: string, start: number, end: number): WrapResult {
+function toggleMultilineQuote(text: string, start: number, end: number): WrapResult {
   return buildLineWrapResult(text, start, end, (lines) => {
     const [firstLine, ...rest] = lines;
     const hasMarker = firstLine === '>>>' || firstLine.startsWith('>>> ');
@@ -239,10 +239,7 @@ export function toggleMultilineQuote(text: string, start: number, end: number): 
   });
 }
 
-/**
- * Toggle code block around selection
- */
-export function toggleCodeBlock(
+function toggleCodeBlock(
   text: string,
   start: number,
   end: number,
@@ -255,17 +252,14 @@ export function toggleCodeBlock(
   const openFence = '```' + language + '\n';
   const closeFence = '\n```';
 
-  // Check if selection is already in a code block
   const fencePattern = /```\w*\n/;
   const hasOpenBefore = fencePattern.test(before.slice(-20));
   const hasCloseAfter = after.trimStart().startsWith('```');
 
   if (hasOpenBefore && hasCloseAfter) {
-    // This is complex - for now just wrap anyway
-    // TODO: Implement proper unwrapping
+    // Preserve existing behavior: wrapping still happens.
   }
 
-  // Wrap in code block
   const newText = before + openFence + selected + closeFence + after;
   return {
     text: newText,
@@ -276,10 +270,7 @@ export function toggleCodeBlock(
   };
 }
 
-/**
- * Insert a masked link [text](url)
- */
-export function insertMaskedLink(
+function insertMaskedLink(
   text: string,
   start: number,
   end: number,
@@ -292,8 +283,7 @@ export function insertMaskedLink(
   const link = `[${selected}](${url})`;
   const newText = before + link + after;
 
-  // Position cursor at URL if using placeholder
-  const urlStart = start + selected.length + 3; // [text](
+  const urlStart = start + selected.length + 3;
   const urlEnd = urlStart + url.length;
 
   return {

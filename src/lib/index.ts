@@ -1,19 +1,11 @@
 export { renderMarkdown, getSupportedLanguages, isLanguageSupported } from './markdown';
 export { sanitizeHtml, sanitizeUrl } from './sanitize';
 export {
-  toggleWrap,
-  toggleWrapAsymmetric,
-  toggleBlockPrefix,
-  toggleHeader,
-  toggleSubtext,
-  toggleMultilineQuote,
-  toggleNumberedList,
-  toggleCodeBlock,
-  insertAt,
-  insertMaskedLink,
+  applyMessageFormatting,
+  type MessageFormattingIntent,
+  type MessageFormattingResult,
   type SelectionRange,
-  type WrapResult,
-} from './selection';
+} from './messageFormatting';
 export { copyToClipboard } from './clipboard';
 export {
   loadContent,

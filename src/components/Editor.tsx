@@ -3,16 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Toolbar } from './Toolbar';
 import { CopyButton } from './CopyButton';
 import { CodeBlockModal } from './CodeBlockModal';
-import {
-  toggleWrap,
-  toggleBlockPrefix,
-  toggleHeader,
-  toggleSubtext,
-  toggleMultilineQuote,
-  toggleNumberedList,
-  toggleCodeBlock,
-  insertMaskedLink,
-} from '../lib/selection';
+import { applyMessageFormatting, type MessageFormattingIntent } from '../lib/messageFormatting';
 
 export function Editor() {
   const content = useAppStore((state) => state.content);
@@ -48,85 +39,84 @@ export function Editor() {
 
   // Apply formatting action
   const applyFormat = useCallback(
-    (
-      formatter: (
-        text: string,
-        start: number,
-        end: number
-      ) => { text: string; selection: { start: number; end: number } }
-    ) => {
-      const { start, end } = getSelection();
-      const result = formatter(content, start, end);
-      setContent(result.text);
+    (intent: MessageFormattingIntent) => {
+      const selection = getSelection();
+      const result = applyMessageFormatting(content, selection, intent);
+
+      if (result.type === 'needsCodeLanguage') {
+        toggleCodeBlockModal();
+        return;
+      }
+
+      setContent(result.message);
       setTextareaSelection(result.selection.start, result.selection.end);
     },
-    [content, setContent, getSelection, setTextareaSelection]
+    [content, getSelection, setContent, setTextareaSelection, toggleCodeBlockModal]
   );
 
   // Formatting handlers
   const handleBold = useCallback(() => {
-    applyFormat((text, start, end) => toggleWrap(text, start, end, '**'));
+    applyFormat({ type: 'bold' });
   }, [applyFormat]);
 
   const handleItalic = useCallback(() => {
-    applyFormat((text, start, end) => toggleWrap(text, start, end, '*'));
+    applyFormat({ type: 'italic' });
   }, [applyFormat]);
 
   const handleUnderline = useCallback(() => {
-    applyFormat((text, start, end) => toggleWrap(text, start, end, '__'));
+    applyFormat({ type: 'underline' });
   }, [applyFormat]);
 
   const handleStrikethrough = useCallback(() => {
-    applyFormat((text, start, end) => toggleWrap(text, start, end, '~~'));
+    applyFormat({ type: 'strikethrough' });
   }, [applyFormat]);
 
   const handleHeader = useCallback(() => {
-    applyFormat((text, start, end) => toggleHeader(text, start, end));
+    applyFormat({ type: 'header' });
   }, [applyFormat]);
 
   const handleCode = useCallback(() => {
-    applyFormat((text, start, end) => toggleWrap(text, start, end, '`'));
+    applyFormat({ type: 'inlineCode' });
   }, [applyFormat]);
 
   const handleCodeBlock = useCallback(() => {
-    // Open modal to select language
-    toggleCodeBlockModal();
-  }, [toggleCodeBlockModal]);
+    applyFormat({ type: 'codeBlock' });
+  }, [applyFormat]);
 
   const handleCodeBlockInsert = useCallback(
     (language: string) => {
       setPreferredCodeLang(language);
-      applyFormat((text, start, end) => toggleCodeBlock(text, start, end, language));
+      applyFormat({ type: 'codeBlockWithLanguage', language });
     },
     [applyFormat, setPreferredCodeLang]
   );
 
   const handleSpoiler = useCallback(() => {
-    applyFormat((text, start, end) => toggleWrap(text, start, end, '||'));
+    applyFormat({ type: 'spoiler' });
   }, [applyFormat]);
 
   const handleSubtext = useCallback(() => {
-    applyFormat((text, start, end) => toggleSubtext(text, start, end));
+    applyFormat({ type: 'subtext' });
   }, [applyFormat]);
 
   const handleQuote = useCallback(() => {
-    applyFormat((text, start, end) => toggleBlockPrefix(text, start, end, '>'));
+    applyFormat({ type: 'blockQuote' });
   }, [applyFormat]);
 
   const handleMultilineQuote = useCallback(() => {
-    applyFormat((text, start, end) => toggleMultilineQuote(text, start, end));
+    applyFormat({ type: 'multilineQuote' });
   }, [applyFormat]);
 
   const handleList = useCallback(() => {
-    applyFormat((text, start, end) => toggleBlockPrefix(text, start, end, '-'));
+    applyFormat({ type: 'bulletList' });
   }, [applyFormat]);
 
   const handleNumberedList = useCallback(() => {
-    applyFormat((text, start, end) => toggleNumberedList(text, start, end));
+    applyFormat({ type: 'numberedList' });
   }, [applyFormat]);
 
   const handleLink = useCallback(() => {
-    applyFormat((text, start, end) => insertMaskedLink(text, start, end));
+    applyFormat({ type: 'maskedLink' });
   }, [applyFormat]);
 
   const handleTimestamp = useCallback(() => {
@@ -172,7 +162,7 @@ export function Editor() {
       } else if (isMod && e.shiftKey && e.key === 'C') {
         e.preventDefault();
         // Quick insert with preferred language
-        applyFormat((text, start, end) => toggleCodeBlock(text, start, end, preferredCodeLang));
+        applyFormat({ type: 'codeBlockWithLanguage', language: preferredCodeLang });
       }
     };
 
