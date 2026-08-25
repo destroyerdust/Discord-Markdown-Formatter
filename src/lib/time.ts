@@ -5,9 +5,14 @@
 
 import { DateTime } from 'luxon';
 import { getTimeZones } from '@vvo/tzdb';
+import {
+  formatDiscordTimestamp,
+  formatRelativeDiscordTime,
+  type DiscordTimestampStyle,
+} from './discordTimestamp.ts';
 
 // Discord timestamp styles
-export type TimestampStyle = 't' | 'T' | 'd' | 'D' | 'f' | 'F' | 'R';
+export type TimestampStyle = DiscordTimestampStyle;
 
 export interface TimestampStyleInfo {
   style: TimestampStyle;
@@ -135,94 +140,14 @@ export function generateTimestampToken(epoch: number, style?: TimestampStyle): s
  * Format epoch as human-readable preview based on style
  */
 export function formatTimestampPreview(epoch: number, style: TimestampStyle): string {
-  const date = new Date(epoch * 1000);
-
-  switch (style) {
-    case 't':
-      return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    case 'T':
-      return date.toLocaleTimeString(undefined, {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    case 'd':
-      return date.toLocaleDateString(undefined, {
-        month: 'numeric',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    case 'D':
-      return date.toLocaleDateString(undefined, {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    case 'f':
-      return date.toLocaleString(undefined, {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    case 'F':
-      return date.toLocaleString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    case 'R':
-      return formatRelativeTime(epoch);
-    default:
-      return date.toLocaleString();
-  }
+  return formatDiscordTimestamp(epoch, style);
 }
 
 /**
  * Format relative time (e.g., "in 5 minutes", "3 hours ago")
  */
 export function formatRelativeTime(epoch: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = epoch - now;
-  const absDiff = Math.abs(diff);
-
-  if (absDiff < 60) {
-    const secs = Math.floor(absDiff);
-    const unit = secs === 1 ? 'second' : 'seconds';
-    return diff < 0 ? `${secs} ${unit} ago` : `in ${secs} ${unit}`;
-  }
-
-  if (absDiff < 3600) {
-    const mins = Math.floor(absDiff / 60);
-    const unit = mins === 1 ? 'minute' : 'minutes';
-    return diff < 0 ? `${mins} ${unit} ago` : `in ${mins} ${unit}`;
-  }
-
-  if (absDiff < 86400) {
-    const hours = Math.floor(absDiff / 3600);
-    const unit = hours === 1 ? 'hour' : 'hours';
-    return diff < 0 ? `${hours} ${unit} ago` : `in ${hours} ${unit}`;
-  }
-
-  if (absDiff < 2592000) {
-    const days = Math.floor(absDiff / 86400);
-    const unit = days === 1 ? 'day' : 'days';
-    return diff < 0 ? `${days} ${unit} ago` : `in ${days} ${unit}`;
-  }
-
-  if (absDiff < 31536000) {
-    const months = Math.floor(absDiff / 2592000);
-    const unit = months === 1 ? 'month' : 'months';
-    return diff < 0 ? `${months} ${unit} ago` : `in ${months} ${unit}`;
-  }
-
-  const years = Math.floor(absDiff / 31536000);
-  const unit = years === 1 ? 'year' : 'years';
-  return diff < 0 ? `${years} ${unit} ago` : `in ${years} ${unit}`;
+  return formatRelativeDiscordTime(epoch);
 }
 
 export interface TimestampPreset {
@@ -328,10 +253,6 @@ export function getCurrentTime(tz: string): string {
  * Validate if a timezone is valid
  */
 export function isValidTimezone(tz: string): boolean {
-  try {
-    const dt = DateTime.now().setZone(tz);
-    return dt.isValid;
-  } catch {
-    return false;
-  }
+  const dt = DateTime.now().setZone(tz);
+  return dt.isValid;
 }

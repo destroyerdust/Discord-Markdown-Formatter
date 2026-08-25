@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppStore, type Draft } from '../store/useAppStore';
 
 interface DraftsManagerProps {
@@ -89,6 +89,10 @@ export function DraftsManager({ isOpen, onClose }: DraftsManagerProps) {
       minute: '2-digit',
     });
   };
+
+  const sortedDrafts = useMemo(() => {
+    return [...drafts].sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [drafts]);
 
   if (!isOpen) return null;
 
@@ -194,115 +198,113 @@ export function DraftsManager({ isOpen, onClose }: DraftsManagerProps) {
             </div>
           ) : (
             <div className="space-y-2">
-              {drafts
-                .sort((a, b) => b.updatedAt - a.updatedAt)
-                .map((draft) => (
-                  <div
-                    key={draft.id}
-                    className={`p-3 rounded-lg border transition-colors cursor-pointer
+              {sortedDrafts.map((draft) => (
+                <div
+                  key={draft.id}
+                  className={`p-3 rounded-lg border transition-colors cursor-pointer
                                ${
                                  selectedDraft?.id === draft.id
                                    ? 'bg-[var(--accent)]/10 border-[var(--accent)]'
                                    : 'bg-[var(--bg-tertiary)] border-transparent hover:border-[var(--border)]'
                                }`}
-                    onClick={() => setSelectedDraft(draft)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-[var(--fg-primary)] truncate">
-                          {draft.title}
-                        </h3>
-                        <p className="text-xs text-[var(--fg-muted)] mt-0.5">
-                          {formatDate(draft.updatedAt)}
-                        </p>
-                        <p className="text-sm text-[var(--fg-secondary)] mt-1 line-clamp-2">
-                          {draft.content.slice(0, 150)}
-                          {draft.content.length > 150 && '...'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleLoadDraft(draft);
-                          }}
-                          className="p-1.5 rounded text-[var(--fg-muted)] hover:text-[var(--accent)]
+                  onClick={() => setSelectedDraft(draft)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-[var(--fg-primary)] truncate">
+                        {draft.title}
+                      </h3>
+                      <p className="text-xs text-[var(--fg-muted)] mt-0.5">
+                        {formatDate(draft.updatedAt)}
+                      </p>
+                      <p className="text-sm text-[var(--fg-secondary)] mt-1 line-clamp-2">
+                        {draft.content.slice(0, 150)}
+                        {draft.content.length > 150 && '...'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLoadDraft(draft);
+                        }}
+                        className="p-1.5 rounded text-[var(--fg-muted)] hover:text-[var(--accent)]
                                      hover:bg-[var(--bg-secondary)] transition-colors"
-                          title="Load draft"
+                        title="Load draft"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" x2="12" y1="15" y2="3" />
-                          </svg>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" x2="12" y1="15" y2="3" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDeleteConfirm(draft.id);
+                        }}
+                        className="p-1.5 rounded text-[var(--fg-muted)] hover:text-[var(--error)]
+                                     hover:bg-[var(--bg-secondary)] transition-colors"
+                        title="Delete draft"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Delete Confirmation */}
+                  {showDeleteConfirm === draft.id && (
+                    <div
+                      className="mt-3 p-2 rounded bg-[var(--error)]/10 border border-[var(--error)]/30"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="text-sm text-[var(--fg-primary)] mb-2">
+                        Delete "{draft.title}"?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDeleteDraft(draft.id)}
+                          className="px-3 py-1 text-sm rounded bg-[var(--error)] text-white
+                                       hover:bg-[var(--error)]/80 transition-colors"
+                        >
+                          Delete
                         </button>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteConfirm(draft.id);
-                          }}
-                          className="p-1.5 rounded text-[var(--fg-muted)] hover:text-[var(--error)]
-                                     hover:bg-[var(--bg-secondary)] transition-colors"
-                          title="Delete draft"
+                          onClick={() => setShowDeleteConfirm(null)}
+                          className="px-3 py-1 text-sm rounded bg-[var(--bg-secondary)]
+                                       text-[var(--fg-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M3 6h18" />
-                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                          </svg>
+                          Cancel
                         </button>
                       </div>
                     </div>
-
-                    {/* Delete Confirmation */}
-                    {showDeleteConfirm === draft.id && (
-                      <div
-                        className="mt-3 p-2 rounded bg-[var(--error)]/10 border border-[var(--error)]/30"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <p className="text-sm text-[var(--fg-primary)] mb-2">
-                          Delete "{draft.title}"?
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleDeleteDraft(draft.id)}
-                            className="px-3 py-1 text-sm rounded bg-[var(--error)] text-white
-                                       hover:bg-[var(--error)]/80 transition-colors"
-                          >
-                            Delete
-                          </button>
-                          <button
-                            onClick={() => setShowDeleteConfirm(null)}
-                            className="px-3 py-1 text-sm rounded bg-[var(--bg-secondary)]
-                                       text-[var(--fg-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

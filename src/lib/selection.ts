@@ -195,9 +195,7 @@ export function toggleNumberedList(text: string, start: number, end: number): Wr
     const allNumbered = lines.every((line) => numberedPattern.test(line) || line.trim() === '');
 
     if (allNumbered) {
-      return lines.map((line) =>
-        numberedPattern.test(line) ? line.replace(numberedPattern, '') : line
-      );
+      return lines.map((line) => line.replace(numberedPattern, ''));
     }
 
     let nextNumber = 1;
@@ -229,10 +227,6 @@ export function toggleSubtext(text: string, start: number, end: number): WrapRes
  */
 export function toggleMultilineQuote(text: string, start: number, end: number): WrapResult {
   return buildLineWrapResult(text, start, end, (lines) => {
-    if (lines.length === 0) {
-      return ['>>> '];
-    }
-
     const [firstLine, ...rest] = lines;
     const hasMarker = firstLine === '>>>' || firstLine.startsWith('>>> ');
 
