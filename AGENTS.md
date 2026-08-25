@@ -11,6 +11,7 @@ Discord Markdown Formatter is a browser-based React SPA for composing and previe
 ```bash
 npm run dev          # Start development server with HMR
 npm run build        # TypeScript check + production build
+npm test             # Run Node-based tests for markdown and selection utilities
 npm run typecheck    # TypeScript type checking only
 npm run lint         # ESLint check
 npm run lint:fix     # ESLint with auto-fix
@@ -46,6 +47,11 @@ npm run preview      # Preview production build locally
 - `src/components/` - React components (Editor, Preview, Header, modals)
 - `src/lib/` - Utilities (markdown, storage, time, sanitize, selection, clipboard)
 - `src/store/useAppStore.ts` - Centralized Zustand state management
+- `tests/` - Node test runner coverage for markdown rendering and selection helpers
+
+## Testing Workflow
+
+Tests run via Node's built-in test runner from `npm test`. Current coverage is focused on `tests/markdown.test.ts` and `tests/selection.test.ts`.
 
 ## TypeScript Configuration
 
@@ -56,3 +62,4 @@ Strict mode enabled with `noUnusedLocals` and `noUnusedParameters`. Unused param
 - Prettier: 100 char width, 2 space indent, single quotes, trailing commas (ES5)
 - ESLint: TypeScript-aware with React hooks and Prettier integration
 - Line endings: LF
+
